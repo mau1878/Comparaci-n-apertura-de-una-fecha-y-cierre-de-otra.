@@ -18,31 +18,31 @@ tickers = [
     "RIGO.BA", "MTR.BA"
 ]
 
-# Function to fetch data for the next available trading date
-def fetch_next_trading_data(tickers, date):
+# Function to fetch data for the closest previous available trading date
+def fetch_previous_trading_data(tickers, date):
     data = {}
     
     for ticker in tickers:
         stock_data = yf.Ticker(ticker)
-        # Fetch data within a wide range to ensure capturing the next trading date
-        df = stock_data.history(start=date - dt.timedelta(days=2), end=date + dt.timedelta(days=7))
+        # Fetch data within a wide range to ensure capturing the previous trading date
+        df = stock_data.history(start=date - dt.timedelta(days=7), end=date + dt.timedelta(days=2))
         df = df.dropna()
 
         # Ensure index is DatetimeIndex and timezone is handled
         if isinstance(df.index, pd.DatetimeIndex):
             df.index = df.index.tz_convert(None)  # Remove timezone information
 
-        # Identify the next trading date (date on or after the selected date)
-        next_trading_date = df.index[df.index >= pd.Timestamp(date)].min()
-        if pd.isna(next_trading_date):
+        # Identify the closest previous trading date (date on or before the selected date)
+        previous_trading_date = df.index[df.index <= pd.Timestamp(date)].max()
+        if pd.isna(previous_trading_date):
             continue  # Skip if no valid date is found
 
-        closest_data = df.loc[next_trading_date]
+        closest_data = df.loc[previous_trading_date]
 
         data[ticker] = {
             'open': closest_data['Open'],
             'close': closest_data['Close'],
-            'date': next_trading_date.date()
+            'date': previous_trading_date.date()
         }
     
     return data
@@ -66,10 +66,10 @@ selected_date_2 = st.date_input(
     max_value=max_date
 )
 
-# Fetch data for both dates using the next available trading dates
+# Fetch data for Date 1 using the next available trading date and for Date 2 using the previous available trading date
 try:
-    data_date_1 = fetch_next_trading_data(tickers, selected_date_1)
-    data_date_2 = fetch_next_trading_data(tickers, selected_date_2)
+    data_date_1 = fetch_previous_trading_data(tickers, selected_date_1)
+    data_date_2 = fetch_previous_trading_data(tickers, selected_date_2)
 except Exception as e:
     st.error(f"Error fetching data: {e}")
     st.stop()
