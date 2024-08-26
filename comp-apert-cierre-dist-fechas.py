@@ -13,7 +13,7 @@ def fetch_trading_data_for_ratio(tickers, date, mode="next"):
     for ticker in tickers:
         stock_data = yf.Ticker(ticker)
         # Fetch data within a wide range to ensure capturing the desired trading date
-        df = stock_data.history(start=date - dt.timedelta(days=7), end=date + dt.timedelta(days=7))
+        df = stock_data.history(start=date - dt.timedelta(days=30), end=date + dt.timedelta(days=30))
         df = df.dropna()
 
         if isinstance(df.index, pd.DatetimeIndex):
