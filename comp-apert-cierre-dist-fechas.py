@@ -6,7 +6,7 @@ import streamlit as st
 # List of tickers
 tickers = ["YPFD.BA", "YPF"]
 
-# Function to fetch data for the closest next or previous available trading date
+# Function to fetch trading data for the closest next or previous available trading date
 def fetch_trading_data_for_ratio(tickers, date, mode="next"):
     data = {}
     
@@ -38,7 +38,7 @@ def fetch_trading_data_for_ratio(tickers, date, mode="next"):
             'date': trading_date.date()
         }
     
-    # Additional logic to handle cases where data for both tickers must be available
+    # Ensure data for all tickers is available
     if len(data) == len(tickers):  # Check if data for both tickers is available
         return data
     else:
