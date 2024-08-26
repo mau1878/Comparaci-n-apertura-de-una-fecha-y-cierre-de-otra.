@@ -102,16 +102,33 @@ def clean_data(data):
 data_date_1 = clean_data(data_date_1)
 data_date_2 = clean_data(data_date_2)
 
-# Initialize metrics
-metrics = {}
+# Calculate percentage differences and quotients
+def calculate_metrics(data_1, data_2):
+    metrics = {}
+    for ticker in data_1:
+        if ticker in data_2:
+            open_price_1 = data_1[ticker]['open']
+            close_price_2 = data_2[ticker]['close']
+            
+            # Calculate percentage difference between open price of Date 1 and close price of Date 2
+            percent_diff = (close_price_2 - open_price_1) / open_price_1 * 100
+            
+            # Calculate quotients for Date 1 and Date 2
+            if "YPFD.BA" in data_1 and "YPF" in data_1:
+                quotient_1 = open_price_1 / (data_1["YPFD.BA"]['open'] / data_1["YPF"]['open'])
+                quotient_2 = close_price_2 / (data_2["YPFD.BA"]['close'] / data_2["YPF"]['close'])
+                quotient_diff = (quotient_2 - quotient_1) / quotient_1 * 100
+            else:
+                quotient_diff = np.nan
+            
+            metrics[ticker] = {
+                'percent_diff': percent_diff,
+                'quotient_diff': quotient_diff
+            }
+    
+    return metrics
 
-# Calculate percentage difference for each ticker
-for ticker, info in data_date_1.items():
-    if ticker in data_date_2:
-        open_price_1 = info['open']
-        close_price_2 = data_date_2[ticker]['close']
-        percent_diff = (close_price_2 - open_price_1) / open_price_1 * 100
-        metrics[ticker] = {'percent_diff': percent_diff}
+metrics = calculate_metrics(data_date_1, data_date_2)
 
 # Function to create bar plots
 def create_bar_plot(metrics, metric, title, date_1, date_2):
@@ -149,40 +166,8 @@ try:
 except Exception as e:
     st.error(f"Error creating the first plot: {e}")
 
-# Fetch the values for the ratio "YPFD/YPF" and update data
-def fetch_ratio_values(date):
-    data = fetch_trading_data(tickers, date)
-    if "YPFD.BA" in data and "YPF" in data:
-        ypf_open = data["YPF"]['open']
-        ypfd_open = data["YPFD.BA"]['open']
-        ratio = ypfd_open / ypf_open
-        return ratio
-    return np.nan
-
-# Get the ratios for the selected dates
-ratio_date_1 = fetch_ratio_values(actual_date_1)
-ratio_date_2 = fetch_ratio_values(actual_date_2)
-
-# Update metrics with ratio adjustment
-def update_metrics_with_ratio(metrics, ratio_1, ratio_2):
-    updated_metrics = {}
-    for ticker, info in metrics.items():
-        if ratio_1 and ratio_2:
-            adjusted_open_price_1 = info['open'] / ratio_1
-            adjusted_close_price_2 = info['close'] / ratio_2
-            percent_diff = (adjusted_close_price_2 - adjusted_open_price_1) / adjusted_open_price_1 * 100
-            updated_metrics[ticker] = {'percent_diff': percent_diff}
-    return updated_metrics
-
-# Apply ratio adjustment
+# Create the second bar plot with actual dates
 try:
-    metrics = update_metrics_with_ratio(metrics, ratio_date_1, ratio_date_2)
-except Exception as e:
-    st.error(f"Error updating metrics with ratio: {e}")
-    st.stop()
-
-# Create the second bar plot with ratio adjustment
-try:
-    create_bar_plot(metrics, 'percent_diff', 'Adjusted Difference in Percentage Between Open Price on Date 1 and Close Price on Date 2', actual_date_1, actual_date_2)
+    create_bar_plot(metrics, 'quotient_diff', 'Difference in Percentage Between Quotient 1 and Quotient 2', actual_date_1, actual_date_2)
 except Exception as e:
     st.error(f"Error creating the second plot: {e}")
