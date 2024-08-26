@@ -6,7 +6,7 @@ import numpy as np
 import datetime as dt
 import streamlit as st
 
-# List of tickers and shares outstanding data
+# List of tickers
 tickers = [
     "GGAL.BA", "YPFD.BA", "PAMP.BA", "TXAR.BA", "ALUA.BA", "CRES.BA", "SUPV.BA", "CEPU.BA", "BMA.BA",
     "TGSU2.BA", "TRAN.BA", "EDN.BA", "LOMA.BA", "MIRG.BA", "DGCU2.BA", "BBAR.BA", "MOLI.BA", "TGNO4.BA",
@@ -18,7 +18,7 @@ tickers = [
     "RIGO.BA", "MTR.BA"
 ]
 
-# Function to fetch data for a specific date, using the next available trading date if necessary
+# Function to fetch data for the next available trading date
 def fetch_next_trading_data(tickers, date):
     data = {}
     
@@ -47,13 +47,11 @@ def fetch_next_trading_data(tickers, date):
     
     return data
 
-
-# Set the minimum and maximum dates for the calendar widget
+# Streamlit: User selects two dates
+st.title("Comparación de precios de acciones en dos fechas diferentes")
 min_date = dt.datetime(2000, 1, 1)
 max_date = dt.datetime.now()
 
-# Streamlit: User selects two dates
-st.title("Comparación de precios de acciones en dos fechas diferentes")
 selected_date_1 = st.date_input(
     "Choose Date 1",
     value=max_date - dt.timedelta(days=1),
@@ -68,10 +66,10 @@ selected_date_2 = st.date_input(
     max_value=max_date
 )
 
-# Fetch data for both dates
+# Fetch data for both dates using the next available trading dates
 try:
-    data_date_1 = fetch_data_for_date(tickers, selected_date_1)
-    data_date_2 = fetch_data_for_date(tickers, selected_date_2)
+    data_date_1 = fetch_next_trading_data(tickers, selected_date_1)
+    data_date_2 = fetch_next_trading_data(tickers, selected_date_2)
 except Exception as e:
     st.error(f"Error fetching data: {e}")
     st.stop()
@@ -130,7 +128,7 @@ def create_bar_plot(metrics, metric, title, date_1, date_2):
     
     plt.figure(figsize=(14, 18))  # Increased height for better label visibility
     sns.barplot(x=df[metric], y=df.index, palette="viridis")
-    plt.title(f"{title} (Data from {date_1} to {date_2})", fontsize=18)
+    plt.title(f'{title} (Data from {date_1} to {date_2})', fontsize=18)
     plt.xlabel(f'{metric} (%)', fontsize=16)
     plt.ylabel('Ticker', fontsize=16)
     plt.xticks(fontsize=12)
@@ -145,13 +143,13 @@ def create_bar_plot(metrics, metric, title, date_1, date_2):
 actual_date_1 = list(data_date_1.values())[0]['date'] if data_date_1 else selected_date_1
 actual_date_2 = list(data_date_2.values())[0]['date'] if data_date_2 else selected_date_2
 
-# Create the first bar plot
+# Create the first bar plot with actual dates
 try:
     create_bar_plot(metrics, 'percent_diff', 'Difference in Percentage Between Open Price on Date 1 and Close Price on Date 2', actual_date_1, actual_date_2)
 except Exception as e:
     st.error(f"Error creating the first plot: {e}")
 
-# Create the second bar plot
+# Create the second bar plot with actual dates
 try:
     create_bar_plot(metrics, 'quotient_diff', 'Difference in Percentage Between Quotient 1 and Quotient 2', actual_date_1, actual_date_2)
 except Exception as e:
