@@ -102,6 +102,17 @@ def clean_data(data):
 data_date_1 = clean_data(data_date_1)
 data_date_2 = clean_data(data_date_2)
 
+# Initialize metrics
+metrics = {}
+
+# Calculate percentage difference for each ticker
+for ticker, info in data_date_1.items():
+    if ticker in data_date_2:
+        open_price_1 = info['open']
+        close_price_2 = data_date_2[ticker]['close']
+        percent_diff = (close_price_2 - open_price_1) / open_price_1 * 100
+        metrics[ticker] = {'percent_diff': percent_diff}
+
 # Function to create bar plots
 def create_bar_plot(metrics, metric, title, date_1, date_2):
     # Filter out tickers with no data or NaN values for the metric
@@ -163,11 +174,15 @@ def update_metrics_with_ratio(metrics, ratio_1, ratio_2):
             updated_metrics[ticker] = {'percent_diff': percent_diff}
     return updated_metrics
 
-# Update metrics with ratio
-metrics = update_metrics_with_ratio(metrics, ratio_date_1, ratio_date_2)
-
-# Create the second bar plot with actual dates
+# Apply ratio adjustment
 try:
-    create_bar_plot(metrics, 'percent_diff', 'Difference in Percentage Adjusted by YPFD/YPF Ratio', actual_date_1, actual_date_2)
+    metrics = update_metrics_with_ratio(metrics, ratio_date_1, ratio_date_2)
+except Exception as e:
+    st.error(f"Error updating metrics with ratio: {e}")
+    st.stop()
+
+# Create the second bar plot with ratio adjustment
+try:
+    create_bar_plot(metrics, 'percent_diff', 'Adjusted Difference in Percentage Between Open Price on Date 1 and Close Price on Date 2', actual_date_1, actual_date_2)
 except Exception as e:
     st.error(f"Error creating the second plot: {e}")
