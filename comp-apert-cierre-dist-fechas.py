@@ -27,11 +27,14 @@ def fetch_data_for_date(tickers, date):
         df = stock_data.history(start=date - dt.timedelta(days=30), end=date + dt.timedelta(days=1))
         df = df.dropna()
 
+        # Convert the index to naive datetime to avoid timezone issues
+        df.index = df.index.tz_localize(None)
+
         # If no data is found, pick the next available trading date
         if len(df) < 1:
             continue
         else:
-            df = df[df.index >= date]  # Filter out dates earlier than the selected date
+            df = df[df.index.date >= date]  # Filter out dates earlier than the selected date
             if len(df) < 1:  # If no data is available after filtering, skip to the next ticker
                 continue
 
