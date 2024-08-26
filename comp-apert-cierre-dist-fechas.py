@@ -6,7 +6,7 @@ import numpy as np
 import datetime as dt
 import streamlit as st
 
-# List of tickers
+# List of tickers and shares outstanding data
 tickers = [
     "GGAL.BA", "YPFD.BA", "PAMP.BA", "TXAR.BA", "ALUA.BA", "CRES.BA", "SUPV.BA", "CEPU.BA", "BMA.BA",
     "TGSU2.BA", "TRAN.BA", "EDN.BA", "LOMA.BA", "MIRG.BA", "DGCU2.BA", "BBAR.BA", "MOLI.BA", "TGNO4.BA",
@@ -18,34 +18,33 @@ tickers = [
     "RIGO.BA", "MTR.BA"
 ]
 
-# Function to fetch data for a specific date, moving forward to the next trading day if necessary
+# Function to fetch data for a specific date, using the next available trading date if necessary
 def fetch_data_for_date(tickers, date):
     data = {}
-    actual_date = None
     
     for ticker in tickers:
         stock_data = yf.Ticker(ticker)
-        
-        # Fetch data within a window and drop missing data
-        df = stock_data.history(start=date - dt.timedelta(days=1), end=date + dt.timedelta(days=7))
+        df = stock_data.history(start=date - dt.timedelta(days=30), end=date + dt.timedelta(days=1))
         df = df.dropna()
-        
-        # If there's no data, continue to the next ticker
-        if df.empty:
-            print(f"No data for {ticker} around {date.strftime('%Y-%m-%d')}")
+
+        # If no data is found, pick the next available trading date
+        if len(df) < 1:
             continue
-        
-        # Select the closest next available date
-        df = df[df.index >= pd.Timestamp(date)]
-        if not df.empty:
-            closest_data = df.iloc[0]
-            actual_date = closest_data.name
-            data[ticker] = {
-                'open': closest_data['Open'],
-                'close': closest_data['Close']
-            }
+        else:
+            df = df[df.index >= date]  # Filter out dates earlier than the selected date
+            if len(df) < 1:  # If no data is available after filtering, skip to the next ticker
+                continue
+
+        closest_data = df.iloc[0]  # Use the first available date after filtering
+        actual_date = df.index[0].date()
+
+        data[ticker] = {
+            'open': closest_data['Open'],
+            'close': closest_data['Close'],
+            'date': actual_date
+        }
     
-    return data, actual_date
+    return data
 
 # Set the minimum and maximum dates for the calendar widget
 min_date = dt.datetime(2000, 1, 1)
@@ -67,17 +66,13 @@ selected_date_2 = st.date_input(
     max_value=max_date
 )
 
-# Fetch data for both dates and capture the actual dates
+# Fetch data for both dates
 try:
-    data_date_1, actual_date_1 = fetch_data_for_date(tickers, selected_date_1)
-    data_date_2, actual_date_2 = fetch_data_for_date(tickers, selected_date_2)
+    data_date_1 = fetch_data_for_date(tickers, selected_date_1)
+    data_date_2 = fetch_data_for_date(tickers, selected_date_2)
 except Exception as e:
     st.error(f"Error fetching data: {e}")
     st.stop()
-
-# Inform the user about the actual dates used for data fetching
-st.write(f"Data for Date 1 is fetched from: {actual_date_1.date() if actual_date_1 else 'No Data Available'}")
-st.write(f"Data for Date 2 is fetched from: {actual_date_2.date() if actual_date_2 else 'No Data Available'}")
 
 # Function to clean data
 def clean_data(data):
@@ -119,7 +114,7 @@ def calculate_metrics(data_1, data_2):
 metrics = calculate_metrics(data_date_1, data_date_2)
 
 # Function to create bar plots
-def create_bar_plot(metrics, metric, title):
+def create_bar_plot(metrics, metric, title, date_1, date_2):
     # Filter out tickers with no data or NaN values for the metric
     metrics = {ticker: info for ticker, info in metrics.items() if not np.isnan(info[metric])}
     
@@ -133,7 +128,7 @@ def create_bar_plot(metrics, metric, title):
     
     plt.figure(figsize=(14, 18))  # Increased height for better label visibility
     sns.barplot(x=df[metric], y=df.index, palette="viridis")
-    plt.title(title, fontsize=18)
+    plt.title(f"{title} (Data from {date_1} to {date_2})", fontsize=18)
     plt.xlabel(f'{metric} (%)', fontsize=16)
     plt.ylabel('Ticker', fontsize=16)
     plt.xticks(fontsize=12)
@@ -144,14 +139,18 @@ def create_bar_plot(metrics, metric, title):
              ha='center', va='center', alpha=0.5, transform=plt.gcf().transFigure)
     st.pyplot(plt)
 
+# Get the actual dates used for data retrieval
+actual_date_1 = list(data_date_1.values())[0]['date'] if data_date_1 else selected_date_1
+actual_date_2 = list(data_date_2.values())[0]['date'] if data_date_2 else selected_date_2
+
 # Create the first bar plot
 try:
-    create_bar_plot(metrics, 'percent_diff', 'Difference in Percentage Between Open Price on Date 1 and Close Price on Date 2')
+    create_bar_plot(metrics, 'percent_diff', 'Difference in Percentage Between Open Price on Date 1 and Close Price on Date 2', actual_date_1, actual_date_2)
 except Exception as e:
     st.error(f"Error creating the first plot: {e}")
 
 # Create the second bar plot
 try:
-    create_bar_plot(metrics, 'quotient_diff', 'Difference in Percentage Between Quotient 1 and Quotient 2')
+    create_bar_plot(metrics, 'quotient_diff', 'Difference in Percentage Between Quotient 1 and Quotient 2', actual_date_1, actual_date_2)
 except Exception as e:
     st.error(f"Error creating the second plot: {e}")
