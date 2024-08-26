@@ -6,7 +6,7 @@ import numpy as np
 import datetime as dt
 import streamlit as st
 
-# List of tickers and shares outstanding data
+# List of tickers
 tickers = [
     "GGAL.BA", "YPFD.BA", "PAMP.BA", "TXAR.BA", "ALUA.BA", "CRES.BA", "SUPV.BA", "CEPU.BA", "BMA.BA",
     "TGSU2.BA", "TRAN.BA", "EDN.BA", "LOMA.BA", "MIRG.BA", "DGCU2.BA", "BBAR.BA", "MOLI.BA", "TGNO4.BA",
@@ -18,30 +18,34 @@ tickers = [
     "RIGO.BA", "MTR.BA"
 ]
 
-# Function to fetch data for a specific date
+# Function to fetch data for a specific date, moving forward to the next trading day if necessary
 def fetch_data_for_date(tickers, date):
     data = {}
+    actual_date = None
     
     for ticker in tickers:
-        # Fetch data
         stock_data = yf.Ticker(ticker)
-        df = stock_data.history(start=date - dt.timedelta(days=30), end=date + dt.timedelta(days=1))
+        
+        # Fetch data within a window and drop missing data
+        df = stock_data.history(start=date - dt.timedelta(days=1), end=date + dt.timedelta(days=7))
         df = df.dropna()
-
-        # Ensure we have at least 1 day of data
-        if len(df) < 1:
-            print(f"No data for {ticker} on {date.strftime('%Y-%m-%d')}")
+        
+        # If there's no data, continue to the next ticker
+        if df.empty:
+            print(f"No data for {ticker} around {date.strftime('%Y-%m-%d')}")
             continue
         
-        # Select the closest available date
-        closest_data = df.iloc[-1]
-        
-        data[ticker] = {
-            'open': closest_data['Open'],
-            'close': closest_data['Close']
-        }
+        # Select the closest next available date
+        df = df[df.index >= pd.Timestamp(date)]
+        if not df.empty:
+            closest_data = df.iloc[0]
+            actual_date = closest_data.name
+            data[ticker] = {
+                'open': closest_data['Open'],
+                'close': closest_data['Close']
+            }
     
-    return data
+    return data, actual_date
 
 # Set the minimum and maximum dates for the calendar widget
 min_date = dt.datetime(2000, 1, 1)
@@ -63,13 +67,17 @@ selected_date_2 = st.date_input(
     max_value=max_date
 )
 
-# Fetch data for both dates
+# Fetch data for both dates and capture the actual dates
 try:
-    data_date_1 = fetch_data_for_date(tickers, selected_date_1)
-    data_date_2 = fetch_data_for_date(tickers, selected_date_2)
+    data_date_1, actual_date_1 = fetch_data_for_date(tickers, selected_date_1)
+    data_date_2, actual_date_2 = fetch_data_for_date(tickers, selected_date_2)
 except Exception as e:
     st.error(f"Error fetching data: {e}")
     st.stop()
+
+# Inform the user about the actual dates used for data fetching
+st.write(f"Data for Date 1 is fetched from: {actual_date_1.date() if actual_date_1 else 'No Data Available'}")
+st.write(f"Data for Date 2 is fetched from: {actual_date_2.date() if actual_date_2 else 'No Data Available'}")
 
 # Function to clean data
 def clean_data(data):
