@@ -27,8 +27,11 @@ def fetch_data_for_date(tickers, date):
         df = stock_data.history(start=date - dt.timedelta(days=30), end=date + dt.timedelta(days=1))
         df = df.dropna()
 
-        # Convert the index to naive datetime to avoid timezone issues
-        df.index = df.index.tz_localize(None)
+        # Check if the index is a DatetimeIndex
+        if isinstance(df.index, pd.DatetimeIndex):
+            # Remove timezone if present to make the index naive
+            if df.index.tz is not None:
+                df.index = df.index.tz_convert(None)
 
         # If no data is found, pick the next available trading date
         if len(df) < 1:
