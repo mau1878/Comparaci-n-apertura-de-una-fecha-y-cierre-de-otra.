@@ -19,38 +19,34 @@ tickers = [
 ]
 
 # Function to fetch data for a specific date, using the next available trading date if necessary
-def fetch_data_for_date(tickers, date):
+def fetch_next_trading_data(tickers, date):
     data = {}
     
     for ticker in tickers:
         stock_data = yf.Ticker(ticker)
-        df = stock_data.history(start=date - dt.timedelta(days=30), end=date + dt.timedelta(days=1))
+        # Fetch data within a wide range to ensure capturing the next trading date
+        df = stock_data.history(start=date - dt.timedelta(days=2), end=date + dt.timedelta(days=7))
         df = df.dropna()
 
-        # Check if the index is a DatetimeIndex
+        # Ensure index is DatetimeIndex and timezone is handled
         if isinstance(df.index, pd.DatetimeIndex):
-            # Remove timezone if present to make the index naive
-            if df.index.tz is not None:
-                df.index = df.index.tz_convert(None)
+            df.index = df.index.tz_convert(None)  # Remove timezone information
 
-        # If no data is found, pick the next available trading date
-        if len(df) < 1:
-            continue
-        else:
-            df = df[df.index.date >= date]  # Filter out dates earlier than the selected date
-            if len(df) < 1:  # If no data is available after filtering, skip to the next ticker
-                continue
+        # Identify the next trading date (date on or after the selected date)
+        next_trading_date = df.index[df.index >= pd.Timestamp(date)].min()
+        if pd.isna(next_trading_date):
+            continue  # Skip if no valid date is found
 
-        closest_data = df.iloc[0]  # Use the first available date after filtering
-        actual_date = df.index[0].date()
+        closest_data = df.loc[next_trading_date]
 
         data[ticker] = {
             'open': closest_data['Open'],
             'close': closest_data['Close'],
-            'date': actual_date
+            'date': next_trading_date.date()
         }
     
     return data
+
 
 # Set the minimum and maximum dates for the calendar widget
 min_date = dt.datetime(2000, 1, 1)
